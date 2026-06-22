@@ -1,0 +1,7 @@
+# Copy to .dev.vars (gitignored) for `wrangler dev`. In production set these with
+# `wrangler secret put <NAME>`.
+SLACK_CLIENT_ID=
+SLACK_CLIENT_SECRET=
+# A long random string — HMAC key for the signed OIDC-state and WebAuthn-challenge
+# cookies. Generate with: openssl rand -base64 48
+CHALLENGE_SECRET=

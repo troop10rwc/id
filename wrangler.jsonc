@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "troop10-id",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets (the built passkey island lives in ./public/assets). Paths
+  // that don't match a file fall through to the Worker, which server-renders
+  // the auth pages.
+  "assets": { "directory": "./public" },
+
+  // The member hub serves the apex. To move it to a subdomain instead, change
+  // this pattern AND the AUTH_ORIGIN var below to https://id.troop10rwc.org —
+  // RP_ID stays the parent domain either way.
+  "routes": [{ "pattern": "troop10rwc.org/*", "zone_name": "troop10rwc.org" }],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "troop10-id",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    "TROOP_TEAM_ID": "TN69FH34Y",
+    "RP_ID": "troop10rwc.org",
+    "RP_NAME": "Troop 10 Redwood City",
+    "AUTH_ORIGIN": "https://troop10rwc.org",
+    "ROOT_DOMAIN": "troop10rwc.org",
+    "SESSION_TTL_SECONDS": "43200"
+  }
+
+  // Secrets (set with `wrangler secret put <NAME>`, never committed):
+  //   SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, CHALLENGE_SECRET
+  // For local dev put them in .dev.vars (see .dev.vars.example).
+}
