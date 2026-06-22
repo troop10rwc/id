@@ -1,20 +1,24 @@
-import { buildSessionCookie, clearSessionCookie, SESSION_COOKIE_NAME } from "@troop10rwc/worker-kit";
-import type { Context } from "hono";
-import { getCookie } from "hono/cookie";
+import { buildSessionCookie, clearSessionCookie } from "@troop10rwc/worker-kit";
 import { createSession, deleteSession } from "./db.js";
 import { type Env, sessionTtl } from "./env.js";
 
-type Ctx = Context<{ Bindings: Env }>;
+/**
+ * Session issue/revoke as plain functions returning the `Set-Cookie` value, so
+ * they don't couple to the Hono Context generics — the caller attaches the
+ * header. Sessions are opaque tokens in D1 (Option B).
+ */
 
-/** Mint a session row and attach the shared `__Secure-troop_session` cookie. */
-export async function startSession(c: Ctx, sub: string): Promise<void> {
-  const token = await createSession(c.env.DB, sub, sessionTtl(c.env));
-  c.header("Set-Cookie", buildSessionCookie(token), { append: true });
+/** Mint a session row; returns the `__Secure-troop_session` Set-Cookie value. */
+export async function issueSessionCookie(db: D1Database, env: Env, sub: string): Promise<string> {
+  const token = await createSession(db, sub, sessionTtl(env));
+  return buildSessionCookie(token);
 }
 
-/** Revoke the current session (delete the row) and clear the cookie. */
-export async function endSession(c: Ctx): Promise<void> {
-  const token = getCookie(c, SESSION_COOKIE_NAME);
-  if (token) await deleteSession(c.env.DB, token);
-  c.header("Set-Cookie", clearSessionCookie(), { append: true });
+/** Revoke the given session token (if any) and return the clearing Set-Cookie. */
+export async function revokeSessionCookie(
+  db: D1Database,
+  token: string | undefined,
+): Promise<string> {
+  if (token) await deleteSession(db, token);
+  return clearSessionCookie();
 }

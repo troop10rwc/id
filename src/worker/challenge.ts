@@ -9,10 +9,13 @@ import { b64urlDecode, b64urlEncode, fromUtf8, utf8 } from "./encoding.js";
  */
 
 async function hmacKey(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", utf8(secret), { name: "HMAC", hash: "SHA-256" }, false, [
-    "sign",
-    "verify",
-  ]);
+  return crypto.subtle.importKey(
+    "raw",
+    utf8(secret) as BufferSource,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
 }
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);

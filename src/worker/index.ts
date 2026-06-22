@@ -1,4 +1,4 @@
-import { requireSession, type SessionVariables } from "@troop10rwc/worker-kit";
+import { requireSession, SESSION_COOKIE_NAME, type SessionVariables } from "@troop10rwc/worker-kit";
 import {
   type AuthenticationResponseJSON,
   type RegistrationResponseJSON,
@@ -17,7 +17,7 @@ import {
 import type { Env } from "./env.js";
 import { renderHub, renderLogin, renderProfile } from "./pages.js";
 import { safeRedirect } from "./redirect.js";
-import { endSession, startSession } from "./session.js";
+import { issueSessionCookie, revokeSessionCookie } from "./session.js";
 import { slackCallback, slackStart } from "./slack.js";
 import {
   buildAuthenticationOptions,
@@ -58,7 +58,8 @@ app.get("/login", (c) => c.html(renderLogin(c.req.query("redirect") ?? "")));
 app.get("/slack/start", slackStart);
 app.get("/slack/callback", slackCallback);
 app.get("/logout", async (c) => {
-  await endSession(c);
+  const cookie = await revokeSessionCookie(c.env.DB, getCookie(c, SESSION_COOKIE_NAME));
+  c.header("Set-Cookie", cookie, { append: true });
   return c.redirect("/login", 302);
 });
 
@@ -115,7 +116,7 @@ app.post("/passkey/login/verify", async (c) => {
   const { verified, newCounter } = await verifyAuthentication(c.env, response, expected, stored);
   if (!verified) return c.json({ error: "verification failed" }, 401);
   await updateCredentialCounter(c.env.DB, stored.id, newCounter);
-  await startSession(c, stored.slack_sub);
+  c.header("Set-Cookie", await issueSessionCookie(c.env.DB, c.env, stored.slack_sub), { append: true });
   return c.json({ redirect: safeRedirect(c.req.query("redirect"), c.env.ROOT_DOMAIN, "/") });
 });
 

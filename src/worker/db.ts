@@ -1,3 +1,4 @@
+import type { AuthenticatorTransportFuture, WebAuthnCredential } from "@simplewebauthn/server";
 import { randomToken } from "./encoding.js";
 
 /**
@@ -42,12 +43,9 @@ export async function deleteSession(db: D1Database, token: string): Promise<void
 
 /* ---- credentials ---------------------------------------------------------- */
 
-export interface StoredCredential {
-  id: string;
-  publicKey: Uint8Array;
-  counter: number;
-  transports: string[] | undefined;
-}
+// Mirror the library's credential shape exactly so the WebAuthn ceremonies
+// accept our stored records without buffer-generic friction.
+export type StoredCredential = WebAuthnCredential;
 
 export interface CredentialSummary {
   id: string;
@@ -117,9 +115,12 @@ export async function getCredential(db: D1Database, id: string): Promise<
   return {
     id: row.id,
     slack_sub: row.slack_sub,
-    publicKey: new Uint8Array(row.public_key),
+    // `.slice()` yields exactly the library's Uint8Array_ (ReturnType<slice>).
+    publicKey: new Uint8Array(row.public_key).slice(),
     counter: row.counter,
-    transports: row.transports ? (JSON.parse(row.transports) as string[]) : undefined,
+    transports: row.transports
+      ? (JSON.parse(row.transports) as AuthenticatorTransportFuture[])
+      : undefined,
   };
 }
 

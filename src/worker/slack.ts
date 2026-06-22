@@ -15,7 +15,7 @@ import {
   SLACK_TOKEN,
 } from "./oidc.js";
 import { safeRedirect } from "./redirect.js";
-import { startSession } from "./session.js";
+import { issueSessionCookie } from "./session.js";
 
 type Ctx = Context<{ Bindings: Env }>;
 
@@ -92,7 +92,7 @@ export async function slackCallback(c: Ctx): Promise<Response> {
   }
 
   await upsertUser(c.env.DB, claims.sub, claims.name, claims.email);
-  await startSession(c, claims.sub);
+  c.header("Set-Cookie", await issueSessionCookie(c.env.DB, c.env, claims.sub), { append: true });
 
   // Returning member with a passkey → back where they came from. First-timer (no
   // passkey yet) → profile, to add one.

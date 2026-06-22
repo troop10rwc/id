@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { signValue, verifyValue } from "./challenge.js";
+import { b64urlEncode, utf8 } from "./encoding.js";
 
 const SECRET = "test-secret-please-rotate";
 
@@ -27,7 +28,7 @@ describe("signed challenge cookies", () => {
   it("rejects a tampered payload", async () => {
     const tok = await signValue("v", 300, SECRET);
     const [, exp, sig] = tok.split(".");
-    const forged = `${Buffer.from("evil").toString("base64url")}.${exp}.${sig}`;
+    const forged = `${b64urlEncode(utf8("evil"))}.${exp}.${sig}`;
     expect(await verifyValue(forged, SECRET)).toBeNull();
   });
 

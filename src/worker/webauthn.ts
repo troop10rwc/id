@@ -31,7 +31,7 @@ export async function buildRegistrationOptions(
     rpName: env.RP_NAME,
     rpID: env.RP_ID,
     userName,
-    userID: utf8(sub),
+    userID: utf8(sub).slice(), // .slice() => the library's Uint8Array_ generic
     attestationType: "none",
     excludeCredentials: existingCredentialIds.map((id) => ({ id })),
     authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
@@ -53,13 +53,8 @@ export async function verifyRegistration(
     requireUserVerification: false,
   });
   if (!verification.verified || !verification.registrationInfo) return null;
-  const { credential } = verification.registrationInfo;
-  return {
-    id: credential.id,
-    publicKey: credential.publicKey,
-    counter: credential.counter,
-    transports: credential.transports,
-  };
+  // registrationInfo.credential is already a WebAuthnCredential (= StoredCredential).
+  return verification.registrationInfo.credential;
 }
 
 export async function buildAuthenticationOptions(
@@ -88,12 +83,7 @@ export async function verifyAuthentication(
     expectedOrigin: env.AUTH_ORIGIN,
     expectedRPID: env.RP_ID,
     requireUserVerification: false,
-    credential: {
-      id: stored.id,
-      publicKey: stored.publicKey,
-      counter: stored.counter,
-      transports: stored.transports,
-    },
+    credential: stored,
   });
   return {
     verified: verification.verified,
