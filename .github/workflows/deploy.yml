@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read # pull @troop10rwc/* from GitHub Packages
 
 jobs:
   deploy:
