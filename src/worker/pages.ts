@@ -66,8 +66,13 @@ ${passkeyBtn("secondary")}
 /** SSR shell for the React back office (@troop10rwc/ui). Ships no markup of its
  *  own beyond the mount point — the kit owns the chrome. The signed-in identity
  *  rides along as a JSON island so the client labels the topbar without a fetch. */
-export function renderManage(session: SessionIdentity): string {
-  const identity = JSON.stringify({ name: session.name ?? session.email ?? "Member" })
+export function renderManage(session: SessionIdentity, rootDomain: string): string {
+  const identity = JSON.stringify({
+    name: session.name ?? session.email ?? "Member",
+    // The back-office apps live on the apex, not this id.* subdomain, so the
+    // client makes the cross-app links absolute (https://<apex>/manage/<app>).
+    manageOrigin: `https://${rootDomain}`,
+  })
     // Defuse a "</script>" sequence inside the JSON island.
     .replace(/</g, "\\u003c");
   return `<!doctype html>

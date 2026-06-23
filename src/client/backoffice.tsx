@@ -32,6 +32,10 @@ interface Identity {
   /** Whether this member is an adult. Drives the adults-only Expenses card.
    *  Not yet provided by the hub (no role data) — defaults to showing it. */
   isAdult?: boolean;
+  /** Origin where the back-office apps live (the apex). The kit's app hrefs are
+   *  relative (/manage/<app>), but this hub is a different subdomain, so we
+   *  prefix them to point at the apex. Empty → keep relative. */
+  manageOrigin?: string;
 }
 
 /** The /manage shell embeds the signed-in identity as a JSON island so the
@@ -193,14 +197,17 @@ function Overview() {
     };
   }, []);
 
-  // Expenses is adults-only (dues/reimbursements). Others show for everyone.
-  const apps = BACK_OFFICE_APPS.filter((a) => a.id !== "expenses" || isAdult);
+  // Make the cross-app links absolute to the apex (see Identity.manageOrigin).
+  const base = identity.manageOrigin ?? "";
+  const apps = BACK_OFFICE_APPS.map((a) => ({ ...a, href: `${base}${a.href}` }));
+  // The top nav shows every app; the Expenses summary card is adults-only.
+  const cardApps = apps.filter((a) => a.id !== "expenses" || isAdult);
 
   return (
     <AppShell
       active="overview"
       appSwitcher={
-        <BackOfficeTopNav active="overview" user={{ name: identity.name }} logoutUrl="/logout" />
+        <BackOfficeTopNav active="overview" apps={apps} user={{ name: identity.name }} logoutUrl="/logout" />
       }
       user={{ name: identity.name }}
       title="Profile"
@@ -220,7 +227,7 @@ function Overview() {
         <EmptyState>Loading your summary…</EmptyState>
       ) : (
         <div className="t10-cardgrid">
-          {apps.map((a) => (
+          {cardApps.map((a) => (
             <AppCard key={a.id} id={a.id} label={a.label} href={a.href} pill={cardPill(a.id, summaries)}>
               {cardBody(a.id, summaries)}
             </AppCard>

@@ -79,7 +79,7 @@ app.get("/logout", async (c) => {
 
 // The dashboard is the home. /manage handles auth (→ /login when no session).
 app.get("/", (c) => c.redirect("/manage", 302));
-app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session)));
+app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN)));
 app.get("/profile", pageAuth, async (c) => {
   const creds = await listCredentials(c.env.DB, c.var.session.sub);
   return c.html(renderProfile(c.var.session, creds, c.req.query("welcome") === "1"));
