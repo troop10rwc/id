@@ -15,7 +15,7 @@ import {
   updateCredentialCounter,
 } from "./db.js";
 import type { Env } from "./env.js";
-import { renderHub, renderLogin, renderProfile } from "./pages.js";
+import { renderHub, renderLogin, renderManage, renderProfile } from "./pages.js";
 import { safeRedirect } from "./redirect.js";
 import { issueSessionCookie, revokeSessionCookie } from "./session.js";
 import { slackCallback, slackStart } from "./slack.js";
@@ -66,6 +66,7 @@ app.get("/logout", async (c) => {
 /* ---- authenticated pages -------------------------------------------------- */
 
 app.get("/", pageAuth, (c) => c.html(renderHub(c.var.session)));
+app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session)));
 app.get("/profile", pageAuth, async (c) => {
   const creds = await listCredentials(c.env.DB, c.var.session.sub);
   return c.html(renderProfile(c.var.session, creds, c.req.query("welcome") === "1"));
