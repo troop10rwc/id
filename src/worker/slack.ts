@@ -60,7 +60,9 @@ export async function slackCallback(c: Ctx): Promise<Response> {
   const stash = JSON.parse(stashStr) as { state: string; verifier: string; redirect: string };
   if (stash.state !== state) return c.text("State mismatch. Please try again.", 400);
 
-  // Code → tokens, with the PKCE verifier.
+  // Code → tokens via PKCE. Slack rejects requests that send both
+  // client_secret and code_verifier with `internal_error`, so for the PKCE
+  // flow we authenticate the code with the verifier alone — no client_secret.
   const tokenRes = await fetch(SLACK_TOKEN, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -69,7 +71,6 @@ export async function slackCallback(c: Ctx): Promise<Response> {
       code,
       redirect_uri: `${c.env.AUTH_ORIGIN}/slack/callback`,
       client_id: c.env.SLACK_CLIENT_ID,
-      client_secret: c.env.SLACK_CLIENT_SECRET,
       code_verifier: stash.verifier,
     }),
   });
