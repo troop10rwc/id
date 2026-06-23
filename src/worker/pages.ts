@@ -31,7 +31,6 @@ function shell(title: string, body: string, opts: { island?: boolean } = {}): st
   li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .6rem 0; border-top: 1px solid rgba(128,128,128,.25); }
   li .meta { font-size: .85rem; }
   li button { width: auto; margin: 0; padding: .4rem .7rem; }
-  a.service { display:block; padding:.6rem 0; border-top:1px solid rgba(128,128,128,.25); text-decoration:none; color:inherit; }
 </style>
 </head>
 <body>
@@ -62,24 +61,6 @@ ${passkeyBtn("")}
 ${passkeyBtn("secondary")}
 <p class="muted" style="margin-top:1rem">New here? Slack sets you up. Already added a passkey on this device? Use it.</p>`;
   return shell("Sign in · Troop 10", body, { island: true });
-}
-
-export function renderHub(session: SessionIdentity): string {
-  const who = esc(session.name ?? session.email ?? "member");
-  // Service list — fill in real subdomains as they come online (§14.4).
-  const services = [
-    { href: "https://calendar.troop10rwc.org", label: "Calendar" },
-    { href: "https://photos.troop10rwc.org", label: "Photos" },
-    { href: "https://podcast.troop10rwc.org", label: "Podcast" },
-  ];
-  return shell(
-    "Troop 10",
-    `<h1>Welcome, ${who}</h1>
-<p class="muted">Your member tools:</p>
-${services.map((s) => `<a class="service" href="${esc(s.href)}">${esc(s.label)} →</a>`).join("\n")}
-<a class="btn" href="/profile" style="margin-top:1.2rem">Manage account &amp; devices</a>
-<a class="btn secondary" href="/logout">Log out</a>`,
-  );
 }
 
 /** SSR shell for the React back office (@troop10rwc/ui). Ships no markup of its

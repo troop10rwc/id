@@ -15,7 +15,7 @@ import {
   updateCredentialCounter,
 } from "./db.js";
 import type { Env } from "./env.js";
-import { renderHub, renderLogin, renderManage, renderProfile } from "./pages.js";
+import { renderLogin, renderManage, renderProfile } from "./pages.js";
 import { safeRedirect } from "./redirect.js";
 import { issueSessionCookie, revokeSessionCookie } from "./session.js";
 import { slackCallback, slackStart } from "./slack.js";
@@ -77,7 +77,8 @@ app.get("/logout", async (c) => {
 
 /* ---- authenticated pages -------------------------------------------------- */
 
-app.get("/", pageAuth, (c) => c.html(renderHub(c.var.session)));
+// The dashboard is the home. /manage handles auth (→ /login when no session).
+app.get("/", (c) => c.redirect("/manage", 302));
 app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session)));
 app.get("/profile", pageAuth, async (c) => {
   const creds = await listCredentials(c.env.DB, c.var.session.sub);
