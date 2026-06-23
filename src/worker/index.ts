@@ -41,6 +41,16 @@ const CHAL_LOGIN = "__Secure-troop_chal_login";
 const shortCookie = (name: string, value: string, maxAge: number) =>
   `${name}=${value}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
 
+// Non-secret device hint: "this browser has enrolled/used a passkey here". Read
+// at SSR to lead with the passkey button and demote Slack to a recovery link.
+// WebAuthn forbids querying credential presence before auth, so a device-local
+// hint (set server-side on passkey login/registration) is the privacy-safe
+// substitute. Not HttpOnly — it carries no secret — but Secure + Lax like the rest.
+const PK_HINT = "t10_pk";
+const PK_HINT_TTL = 34_560_000; // 400 days (the browser cap on cookie lifetime)
+const hintCookie = (value: string, maxAge: number) =>
+  `${PK_HINT}=${value}; Path=/; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+
 /** Coarse, friendly device label from the User-Agent (best-effort only). */
 function deviceLabel(ua: string | undefined): string | null {
   if (!ua) return null;
@@ -54,7 +64,9 @@ function deviceLabel(ua: string | undefined): string | null {
 
 /* ---- public pages + Slack enrollment ------------------------------------- */
 
-app.get("/login", (c) => c.html(renderLogin(c.req.query("redirect") ?? "")));
+app.get("/login", (c) =>
+  c.html(renderLogin(c.req.query("redirect") ?? "", getCookie(c, PK_HINT) === "1")),
+);
 app.get("/slack/start", slackStart);
 app.get("/slack/callback", slackCallback);
 app.get("/logout", async (c) => {
@@ -92,6 +104,7 @@ app.post("/passkey/register/verify", apiAuth, async (c) => {
   const cred = await verifyRegistration(c.env, response, expected);
   if (!cred) return c.json({ error: "verification failed" }, 400);
   await insertCredential(c.env.DB, c.var.session.sub, cred, deviceLabel(c.req.header("User-Agent")));
+  c.header("Set-Cookie", hintCookie("1", PK_HINT_TTL), { append: true });
   return c.json({ ok: true });
 });
 
@@ -118,6 +131,7 @@ app.post("/passkey/login/verify", async (c) => {
   if (!verified) return c.json({ error: "verification failed" }, 401);
   await updateCredentialCounter(c.env.DB, stored.id, newCounter);
   c.header("Set-Cookie", await issueSessionCookie(c.env.DB, c.env, stored.slack_sub), { append: true });
+  c.header("Set-Cookie", hintCookie("1", PK_HINT_TTL), { append: true });
   return c.json({ redirect: safeRedirect(c.req.query("redirect"), c.env.ROOT_DOMAIN, "/") });
 });
 
@@ -125,6 +139,11 @@ app.post("/passkey/login/verify", async (c) => {
 
 app.post("/profile/credentials/:id/delete", apiAuth, async (c) => {
   const ok = await deleteCredential(c.env.DB, c.var.session.sub, c.req.param("id"));
+  // If that was the last passkey, drop the device hint so /login stops leading
+  // with a passkey button this browser can no longer satisfy.
+  if (ok && (await credentialIdsFor(c.env.DB, c.var.session.sub)).length === 0) {
+    c.header("Set-Cookie", hintCookie("", 0), { append: true });
+  }
   return c.json({ ok });
 });
 

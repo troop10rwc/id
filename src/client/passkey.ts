@@ -3,8 +3,8 @@ import { startAuthentication, startRegistration } from "@simplewebauthn/browser"
 /**
  * The passkey "island" — the only client JS the hub ships. Server-rendered pages
  * reference /assets/passkey.js (built from this file by Vite).
- *  - On the login page (#passkey-login present) it starts conditional-UI login so
- *    passkeys show up in the browser's autofill.
+ *  - On the login page (#passkey-signin button) it runs a modal WebAuthn login
+ *    on click. Hidden when the browser has no WebAuthn support.
  *  - On the profile page it exposes window.t10AddPasskey / t10RemovePasskey.
  */
 
@@ -20,25 +20,29 @@ function currentRedirect(): string {
   return new URLSearchParams(location.search).get("redirect") ?? "";
 }
 
-async function beginConditionalLogin(): Promise<void> {
+async function modalLogin(): Promise<void> {
   let options;
   try {
     options = await (await postJSON("/passkey/login/options")).json();
   } catch {
-    return; // can't reach the server — leave the Slack button as the way in
+    alert("Couldn't reach the server. Try signing in with Slack.");
+    return;
   }
   try {
-    const assertion = await startAuthentication({ optionsJSON: options, useBrowserAutofill: true });
+    const assertion = await startAuthentication({ optionsJSON: options });
     const r = currentRedirect();
     const verify = await postJSON(
       `/passkey/login/verify${r ? `?redirect=${encodeURIComponent(r)}` : ""}`,
       assertion,
     );
-    if (!verify.ok) return;
+    if (!verify.ok) {
+      alert("That passkey didn't work. Try again, or sign in with Slack.");
+      return;
+    }
     const { redirect } = (await verify.json()) as { redirect?: string };
     location.href = redirect ?? "/";
   } catch {
-    // User dismissed the autofill prompt — not an error.
+    // User dismissed the system passkey sheet — not an error.
   }
 }
 
@@ -67,6 +71,9 @@ declare global {
 window.t10AddPasskey = () => void addPasskey().catch((e) => alert(String(e)));
 window.t10RemovePasskey = (id) => void removePasskey(id).catch((e) => alert(String(e)));
 
-if (document.getElementById("passkey-login")) {
-  void beginConditionalLogin();
+const signinBtn = document.getElementById("passkey-signin");
+if (signinBtn) {
+  // No WebAuthn support → hide the button so the page falls back to Slack.
+  if (!window.PublicKeyCredential) signinBtn.style.display = "none";
+  else signinBtn.addEventListener("click", () => void modalLogin());
 }

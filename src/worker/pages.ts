@@ -25,6 +25,7 @@ function shell(title: string, body: string, opts: { island?: boolean } = {}): st
   .muted { opacity: .7; font-size: .9rem; }
   button, .btn { font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: .7rem 1rem; width: 100%; margin-top: .6rem; background: #2f6f4f; color: #fff; text-align: center; text-decoration: none; display: block; box-sizing: border-box; }
   .btn.secondary, button.secondary { background: transparent; color: inherit; border: 1px solid currentColor; opacity: .8; }
+  a.btn-link { display: block; text-align: center; margin-top: .9rem; color: inherit; opacity: .65; font-size: .9rem; text-decoration: underline; }
   input { font: inherit; width: 100%; padding: .7rem; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: .4rem; }
   ul { list-style: none; padding: 0; margin: 1rem 0 0; }
   li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .6rem 0; border-top: 1px solid rgba(128,128,128,.25); }
@@ -42,20 +43,25 @@ ${opts.island ? '<script type="module" src="/assets/passkey.js"></script>' : ""}
 </html>`;
 }
 
-export function renderLogin(redirect: string): string {
-  const r = esc(redirect);
-  return shell(
-    "Sign in · Troop 10",
-    `<h1>Troop 10 Redwood City</h1>
-<p class="muted">Sign in to your member tools.</p>
-<form id="passkey-login" autocomplete="on" onsubmit="return false">
-  <input type="text" name="username" autocomplete="username webauthn" placeholder="Sign in with a passkey" aria-label="Passkey">
-</form>
-<a class="btn" href="/slack/start${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}">First time? Sign in with Slack</a>
-<p class="muted" style="margin-top:1rem">Passkeys are the everyday way in. Slack is for first-time setup and recovery.</p>
-<input type="hidden" id="redirect-target" value="${r}">`,
-    { island: true },
-  );
+export function renderLogin(redirect: string, hasPasskeyHint: boolean): string {
+  const slackHref = `/slack/start${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`;
+  // The passkey button triggers a modal WebAuthn get() (passkey.ts); a plain
+  // button is honest for a passkey-only flow — there's no username to type.
+  const passkeyBtn = (cls: string): string =>
+    `<button id="passkey-signin"${cls ? ` class="${cls}"` : ""}>Sign in with a passkey</button>`;
+  const intro = `<h1>Troop 10 Redwood City</h1>
+<p class="muted">Sign in to your member tools.</p>`;
+  // hasPasskeyHint = this browser has used a passkey here before. Lead with it
+  // and demote Slack to recovery. Otherwise assume first-time: Slack leads.
+  const body = hasPasskeyHint
+    ? `${intro}
+${passkeyBtn("")}
+<a class="btn-link" href="${slackHref}">First time, or lost your device? Sign in with Slack</a>`
+    : `${intro}
+<a class="btn" href="${slackHref}">Sign in with Slack</a>
+${passkeyBtn("secondary")}
+<p class="muted" style="margin-top:1rem">New here? Slack sets you up. Already added a passkey on this device? Use it.</p>`;
+  return shell("Sign in · Troop 10", body, { island: true });
 }
 
 export function renderHub(session: SessionIdentity): string {
