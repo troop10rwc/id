@@ -2,7 +2,7 @@
 
 The Troop 10 RWC **member home**: Slack-enrollment + passkey (WebAuthn) auth that
 issues the shared session every member service trusts. Replaces Cloudflare Access.
-Deploys independently to the apex (`troop10rwc.org`).
+Deploys independently to its own subdomain (`id.troop10rwc.org`).
 
 - **Slack** is the one-time enrollment gate (locked to workspace `TN69FH34Y`).
 - **Passkeys** are the daily driver (conditional-UI autofill login).
@@ -55,7 +55,7 @@ pnpm dev                      # builds the island, runs wrangler dev
 
 ### Slack app
 
-OIDC redirect URI `https://troop10rwc.org/slack/callback`, scopes
+OIDC redirect URI `https://id.troop10rwc.org/slack/callback`, scopes
 `openid profile email`. Use the **Client ID** (not the App ID). Set the three
 secrets with `wrangler secret put <NAME>` for production.
 

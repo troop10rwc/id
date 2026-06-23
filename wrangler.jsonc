@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "troop10-id",
+  "name": "profile",
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,16 +10,17 @@
   // the auth pages.
   "assets": { "directory": "./public" },
 
-  // The member hub serves the apex. To move it to a subdomain instead, change
-  // this pattern AND the AUTH_ORIGIN var below to https://id.troop10rwc.org —
-  // RP_ID stays the parent domain either way.
-  "routes": [{ "pattern": "troop10rwc.org/*", "zone_name": "troop10rwc.org" }],
+  // The member hub serves its own subdomain so it doesn't own the apex. RP_ID
+  // stays the parent domain (below) so passkeys work org-wide. Needs a proxied
+  // DNS record for `id` and the Slack OAuth redirect URI set to
+  // https://id.troop10rwc.org/slack/callback.
+  "routes": [{ "pattern": "id.troop10rwc.org/*", "zone_name": "troop10rwc.org" }],
 
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "troop10-id",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "d7f3829c-c2a1-4c7e-bad9-8329eedfd257",
       "migrations_dir": "migrations"
     }
   ],
@@ -28,7 +29,7 @@
     "TROOP_TEAM_ID": "TN69FH34Y",
     "RP_ID": "troop10rwc.org",
     "RP_NAME": "Troop 10 Redwood City",
-    "AUTH_ORIGIN": "https://troop10rwc.org",
+    "AUTH_ORIGIN": "https://id.troop10rwc.org",
     "ROOT_DOMAIN": "troop10rwc.org",
     "SESSION_TTL_SECONDS": "43200"
   }
