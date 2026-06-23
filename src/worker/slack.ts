@@ -74,7 +74,17 @@ export async function slackCallback(c: Ctx): Promise<Response> {
     }),
   });
   const token = (await tokenRes.json()) as { ok?: boolean; id_token?: string; error?: string };
-  if (!token.ok || !token.id_token) return c.text("Slack token exchange failed.", 502);
+  if (!token.ok || !token.id_token) {
+    // Slack reports the real reason here (e.g. invalid_code, bad_client_secret,
+    // redirect_uri_mismatch). Log it so `wrangler tail` can diagnose, and echo
+    // the code to the user — it's not sensitive and it makes self-service fixes
+    // possible.
+    console.error("Slack token exchange failed", {
+      status: tokenRes.status,
+      error: token.error ?? "(no error field)",
+    });
+    return c.text(`Slack token exchange failed: ${token.error ?? "unknown error"}`, 502);
+  }
 
   // Verify id_token signature (JWKS) + iss + aud + exp, then the team gate.
   let claims;
