@@ -1,10 +1,7 @@
-import { b64urlEncode, utf8 } from "./encoding.js";
-
 /**
  * Pure Slack-OIDC helpers — no network, no worker-kit imports — so the
- * security-critical bits (PKCE derivation, the team_id membership gate, the
- * authorize-URL shape) are unit-testable in isolation. The network handlers
- * live in slack.ts.
+ * security-critical bits (the team_id membership gate, the authorize-URL shape)
+ * are unit-testable in isolation. The network handlers live in slack.ts.
  */
 
 export const SLACK_AUTHORIZE = "https://slack.com/openid/connect/authorize";
@@ -13,21 +10,17 @@ export const SLACK_JWKS = "https://slack.com/openid/connect/keys";
 export const SLACK_ISSUER = "https://slack.com";
 export const SLACK_TEAM_CLAIM = "https://slack.com/team_id";
 
-/** RFC 7636 S256 code challenge for a PKCE verifier. */
-export async function pkceChallenge(verifier: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", utf8(verifier) as BufferSource);
-  return b64urlEncode(new Uint8Array(digest));
-}
-
 export interface AuthorizeParams {
   clientId: string;
   redirectUri: string;
   state: string;
-  codeChallenge: string;
 }
 
 /** Build the Slack authorize URL. Missing `openid`/`profile` scope is a common
- *  silent failure, so the scope set is fixed here. */
+ *  silent failure, so the scope set is fixed here. This is the confidential
+ *  authorization-code flow (the code is exchanged with the client_secret in
+ *  slack.ts) — no PKCE: Slack's openid.connect.token rejects code_verifier with
+ *  `internal_error` for this app, and a server-side Worker keeps the secret. */
 export function buildAuthorizeUrl(p: AuthorizeParams): string {
   const url = new URL(SLACK_AUTHORIZE);
   url.searchParams.set("response_type", "code");
@@ -35,8 +28,6 @@ export function buildAuthorizeUrl(p: AuthorizeParams): string {
   url.searchParams.set("scope", "openid profile email");
   url.searchParams.set("redirect_uri", p.redirectUri);
   url.searchParams.set("state", p.state);
-  url.searchParams.set("code_challenge", p.codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
 }
 

@@ -1,40 +1,24 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildAuthorizeUrl,
-  extractClaims,
-  isTroopMember,
-  pkceChallenge,
-  SLACK_TEAM_CLAIM,
-} from "./oidc.js";
+import { buildAuthorizeUrl, extractClaims, isTroopMember, SLACK_TEAM_CLAIM } from "./oidc.js";
 
 const TEAM = "TN69FH34Y";
 
-describe("pkceChallenge", () => {
-  it("matches the known RFC 7636 S256 test vector", async () => {
-    // verifier/challenge pair from RFC 7636 Appendix B.
-    expect(await pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")).toBe(
-      "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
-    );
-  });
-});
-
 describe("buildAuthorizeUrl", () => {
-  it("includes the fixed scope and S256 PKCE params", () => {
+  it("includes the fixed scope and the confidential-flow params", () => {
     const url = new URL(
       buildAuthorizeUrl({
         clientId: "cid",
         redirectUri: "https://troop10rwc.org/slack/callback",
         state: "st",
-        codeChallenge: "cc",
       }),
     );
     expect(url.origin + url.pathname).toBe("https://slack.com/openid/connect/authorize");
     expect(url.searchParams.get("scope")).toBe("openid profile email");
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("client_id")).toBe("cid");
-    expect(url.searchParams.get("code_challenge")).toBe("cc");
-    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("state")).toBe("st");
+    // No PKCE: confidential flow, secret authenticates the token exchange.
+    expect(url.searchParams.get("code_challenge")).toBeNull();
   });
 });
 

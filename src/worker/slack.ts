@@ -9,7 +9,6 @@ import {
   buildAuthorizeUrl,
   extractClaims,
   isTroopMember,
-  pkceChallenge,
   SLACK_ISSUER,
   SLACK_JWKS,
   SLACK_TOKEN,
@@ -30,10 +29,8 @@ const shortCookie = (name: string, value: string, maxAge: number) =>
 export async function slackStart(c: Ctx): Promise<Response> {
   const redirect = c.req.query("redirect") ?? "";
   const state = randomToken(16);
-  const verifier = randomToken(32);
-  const codeChallenge = await pkceChallenge(verifier);
   const stash = await signValue(
-    JSON.stringify({ state, verifier, redirect }),
+    JSON.stringify({ state, redirect }),
     600,
     c.env.CHALLENGE_SECRET,
   );
@@ -42,7 +39,6 @@ export async function slackStart(c: Ctx): Promise<Response> {
     clientId: c.env.SLACK_CLIENT_ID,
     redirectUri: `${c.env.AUTH_ORIGIN}/slack/callback`,
     state,
-    codeChallenge,
   });
   return c.redirect(url, 302);
 }
@@ -57,12 +53,13 @@ export async function slackCallback(c: Ctx): Promise<Response> {
 
   const stashStr = await verifyValue(raw, c.env.CHALLENGE_SECRET);
   if (!code || !state || !stashStr) return c.text("Invalid login state. Please try again.", 400);
-  const stash = JSON.parse(stashStr) as { state: string; verifier: string; redirect: string };
+  const stash = JSON.parse(stashStr) as { state: string; redirect: string };
   if (stash.state !== state) return c.text("State mismatch. Please try again.", 400);
 
-  // Code → tokens via PKCE. Slack rejects requests that send both
-  // client_secret and code_verifier with `internal_error`, so for the PKCE
-  // flow we authenticate the code with the verifier alone — no client_secret.
+  // Code → tokens via the confidential authorization-code flow: client_id +
+  // client_secret, no PKCE. Slack's openid.connect.token returns
+  // `internal_error` when a code_verifier is sent for this app, so the secret
+  // (held only here in the Worker) is what authenticates the exchange.
   const tokenRes = await fetch(SLACK_TOKEN, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -71,7 +68,7 @@ export async function slackCallback(c: Ctx): Promise<Response> {
       code,
       redirect_uri: `${c.env.AUTH_ORIGIN}/slack/callback`,
       client_id: c.env.SLACK_CLIENT_ID,
-      code_verifier: stash.verifier,
+      client_secret: c.env.SLACK_CLIENT_SECRET,
     }),
   });
   const token = (await tokenRes.json()) as { ok?: boolean; id_token?: string; error?: string };
