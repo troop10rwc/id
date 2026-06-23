@@ -10,6 +10,11 @@ import { defineConfig } from "vite";
 // references resolve to /assets/<font> where the assets actually live.
 export default defineConfig({
   base: "/assets/",
+  // Use React's automatic JSX runtime (jsx/jsxs from react/jsx-runtime) so the
+  // bundle needs no `React` global. Without this, esbuild defaults to the classic
+  // runtime (React.createElement) since there's no root tsconfig.json to read
+  // `jsx: react-jsx` from, and the page throws "React is not defined".
+  esbuild: { jsx: "automatic" },
   build: {
     outDir: "public/assets",
     emptyOutDir: true,
