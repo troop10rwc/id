@@ -16,6 +16,13 @@
   // https://id.troop10rwc.org/slack/callback.
   "routes": [{ "pattern": "id.troop10rwc.org/*", "zone_name": "troop10rwc.org" }],
 
+  // Also expose the *.workers.dev URL + per-version preview URLs (the preview
+  // surface). These are Cloudflare Access-restricted in the dashboard ("Worker
+  // URL → Restricted"); the worker authenticates them via the Access JWT (see
+  // CF_ACCESS_* in vars). Production traffic still arrives on the route above.
+  "workers_dev": true,
+  "preview_urls": true,
+
   "d1_databases": [
     {
       "binding": "DB",
@@ -31,7 +38,13 @@
     "RP_NAME": "Troop 10 Redwood City",
     "AUTH_ORIGIN": "https://id.troop10rwc.org",
     "ROOT_DOMAIN": "troop10rwc.org",
-    "SESSION_TTL_SECONDS": "43200"
+    "SESSION_TTL_SECONDS": "43200",
+
+    // Cloudflare Access for the *.workers.dev preview URLs. AUD is the Access
+    // application tag; TEAM_DOMAIN is your Zero Trust team (the <team> in
+    // https://<team>.cloudflareaccess.com). Not secrets.
+    "CF_ACCESS_TEAM_DOMAIN": "troop10rwc",
+    "CF_ACCESS_AUD": "c67ec81bd200ea8636d0addb4633b384f6c4431657ff00edeff95551e5fc1a2c"
   }
 
   // Secrets (set with `wrangler secret put <NAME>`, never committed):

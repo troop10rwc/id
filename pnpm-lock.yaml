@@ -15,14 +15,14 @@ importers:
         specifier: ^13.1.1
         version: 13.3.1
       '@troop10rwc/shared':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.9.0
+        version: 0.9.0
       '@troop10rwc/ui':
-        specifier: ^0.7.0
-        version: 0.7.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.9.0
+        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@troop10rwc/worker-kit':
-        specifier: ^0.7.0
-        version: 0.7.0(hono@4.12.26)
+        specifier: ^0.9.0
+        version: 0.9.0(hono@4.12.26)
       hono:
         specifier: ^4.6.0
         version: 4.12.26
@@ -973,17 +973,17 @@ packages:
   '@speed-highlight/core@1.2.17':
     resolution: {integrity: sha512-Z92FwKpCtfaW1V0jTU/fh3QzYEZN8wDwrzRIBoADCJfn4mJCNcJN/XegifX7BDrQ8/h9Xh/JnbyMchL0FqXrkg==}
 
-  '@troop10rwc/shared@0.7.0':
-    resolution: {integrity: sha512-hDeV/2AqhpMeysdBoNthZGHQFiamjPT39i0vbp18hqWFSFVlT4tqQCtd02oYpgMnFWYF57EKuXe4BZrxahpfEg==, tarball: https://npm.pkg.github.com/download/@troop10rwc/shared/0.7.0/94ba0a51aaa181bf158f4bebcf4bfebb31a9a6a0}
+  '@troop10rwc/shared@0.9.0':
+    resolution: {integrity: sha512-JFxzHBD94eO3mH/qHd9GRoSt7Ul6UJ9yGjh2QDiXVgVDAJFUXJt3kNuqDBCM54DHgtcLngWc0P+iTxu87irA5A==, tarball: https://npm.pkg.github.com/download/@troop10rwc/shared/0.9.0/39f564c35e251dc3554e1310132daac9803c4dbd}
 
-  '@troop10rwc/ui@0.7.0':
-    resolution: {integrity: sha512-ACyNCp5Aa2+tOcHW0Kf5hyGZUJrLa6WMoB1rxxVVTcgIUA5elTnBGGKxruZwT/PubBTYPCGzdV7IdDYZuQPOYg==, tarball: https://npm.pkg.github.com/download/@troop10rwc/ui/0.7.0/58928004a30c320879ed81b47c31f3ce37c804d5}
+  '@troop10rwc/ui@0.9.0':
+    resolution: {integrity: sha512-QwmYe9sws5ZncFk44DkiVvq3r6hCq54Tu6KGPXybjSyyraLEUFNc5iOl/DWW9u+7yTtDhecttTWeAqnBwoxRDg==, tarball: https://npm.pkg.github.com/download/@troop10rwc/ui/0.9.0/6932f105853346db52a8347f1b3c01be7785b542}
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
 
-  '@troop10rwc/worker-kit@0.7.0':
-    resolution: {integrity: sha512-FNTeWYmxwWdtBRTYyqKo9fcW2zw51fY+A2hrhlH2LubsJTqcl9dtISOoc3Kh/JwfrLrApvtQdCwWm3HDCJOuOw==, tarball: https://npm.pkg.github.com/download/@troop10rwc/worker-kit/0.7.0/03b3003879b57467a70686c567921e1c4b213d54}
+  '@troop10rwc/worker-kit@0.9.0':
+    resolution: {integrity: sha512-Vn0A91vR9U7p3E/kz7WWJj8NdGuRO22bXy8MKPaOR4XLHXqBWu5Uk01ggCe8HspZKJmiTQgab8RYjFVQH5kupg==, tarball: https://npm.pkg.github.com/download/@troop10rwc/worker-kit/0.9.0/8727b04c4d16b87df44224cb8e8d3efc1af605d6}
     peerDependencies:
       hono: ^4.0.0
 
@@ -2119,9 +2119,9 @@ snapshots:
 
   '@speed-highlight/core@1.2.17': {}
 
-  '@troop10rwc/shared@0.7.0': {}
+  '@troop10rwc/shared@0.9.0': {}
 
-  '@troop10rwc/ui@0.7.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@troop10rwc/ui@0.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@fontsource-variable/archivo': 5.2.8
       '@fontsource-variable/hanken-grotesk': 5.2.8
@@ -2138,9 +2138,9 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  '@troop10rwc/worker-kit@0.7.0(hono@4.12.26)':
+  '@troop10rwc/worker-kit@0.9.0(hono@4.12.26)':
     dependencies:
-      '@troop10rwc/shared': 0.7.0
+      '@troop10rwc/shared': 0.9.0
       hono: 4.12.26
 
   '@types/chai@5.2.3':

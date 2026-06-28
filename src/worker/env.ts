@@ -11,6 +11,13 @@ export interface Env {
   ROOT_DOMAIN: string; // troop10rwc.org — for the safe-redirect host check
   SESSION_TTL_SECONDS: string; // stringified int (wrangler vars are strings)
 
+  // Cloudflare Access — only used on the Access-restricted *.workers.dev preview
+  // URLs (the session cookie is scoped to troop10rwc.org and can't reach them, so
+  // there we authenticate with the Access JWT instead). Unset on a plain prod
+  // request → the worker just uses requireSession. Not secrets.
+  CF_ACCESS_TEAM_DOMAIN?: string; // "troop10rwc" or "troop10rwc.cloudflareaccess.com"
+  CF_ACCESS_AUD?: string; // Access application AUD tag
+
   // Secrets
   SLACK_CLIENT_ID: string;
   SLACK_CLIENT_SECRET: string;
