@@ -17,6 +17,7 @@ import {
   credentialIdsFor,
   deleteCredential,
   getCredential,
+  hasCredential,
   insertCredential,
   listCredentials,
   updateCredentialCounter,
@@ -160,7 +161,15 @@ app.get("/logout", async (c) => {
 // a separate Worker). The id root just lands on account management at /manage,
 // which handles auth (→ /login when no session).
 app.get("/", (c) => c.redirect("/manage", 302));
-app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN)));
+app.get("/manage", pageAuth, async (c) => {
+  // On the Access-bootstrapped *.workers.dev preview, a first-time visitor has no
+  // passkey yet — send them straight to the "add a passkey" prompt (mirrors the
+  // post-Slack-enrollment welcome). Prod (troop10rwc.org) is unaffected.
+  if (onWorkersDev(c) && !(await hasCredential(c.env.DB, c.var.session.sub))) {
+    return c.redirect("/profile?welcome=1", 302);
+  }
+  return c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN));
+});
 app.get("/profile", pageAuth, async (c) => {
   const creds = await listCredentials(c.env.DB, c.var.session.sub);
   return c.html(renderProfile(c.var.session, creds, c.req.query("welcome") === "1"));
