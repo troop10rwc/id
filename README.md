@@ -92,23 +92,10 @@ wrangler versions upload   # → an Access-gated <id>-profile.tactical.workers.d
 ## Dashboard (apex launchpad)
 
 Per the kit's STACK (≥ 0.8.0) the back office is split: `id.troop10rwc.org` is
-**account only**, and "home" is a separate **dashboard** Worker on the apex at
-`troop10rwc.org/dashboard` (every app's brand logo points there). It lives in
-this repo as a second Worker under [`src/dashboard/`](src/dashboard/): an
-SSR-mounted React island built on the kit's `@troop10rwc/ui` `AppShell` (same
-chrome as every other back-office page), protected by `requireSession`, binding
-the shared `troop10-id` D1 read-only and bouncing unauthenticated visitors to
-`id.troop10rwc.org/login`.
-
-```bash
-pnpm dev:dashboard       # build the island + wrangler dev --config src/dashboard/wrangler.jsonc
-pnpm deploy:dashboard    # build the island + deploy to troop10rwc.org/dashboard*
-```
-
-Because this Worker only owns `/dashboard*`, the island bundle is built by
-[`vite.dashboard.config.ts`](vite.dashboard.config.ts) into `public-dashboard/`
-and served from the assets binding under `/dashboard/assets/*`; non-asset paths
-(`/dashboard`) fall through to the Worker, which SSRs the mount shell.
+**account only**, and "home" is a separate **dashboard** app on the apex at
+`troop10rwc.org/dashboard` (every app's brand logo points there). It lives in its
+own repo — [`troop10rwc/dashboard`](https://github.com/troop10rwc/dashboard) — and
+binds this hub's `troop10-id` D1 read-only for `requireSession`.
 
 ## Tests
 
