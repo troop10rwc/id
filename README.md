@@ -61,9 +61,9 @@ secrets with `wrangler secret put <NAME>` for production.
 
 ### Deploy
 
-CI deploys on push to `main` (`.github/workflows/deploy.yml`). Repo secrets:
-`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. The Slack/Cloudflare values come
-from env/secrets — never hard-code them.
+Cloudflare **Workers Builds** (the Git integration) deploys the live Worker on
+push to `main`; `.github/workflows/ci.yml` runs build + typecheck + tests on every
+push/PR. The Slack/Cloudflare values come from env/secrets — never hard-code them.
 
 ### Preview deploys (`*.workers.dev`)
 
