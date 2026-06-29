@@ -44,7 +44,12 @@
     // application tag; TEAM_DOMAIN is your Zero Trust team (the <team> in
     // https://<team>.cloudflareaccess.com). Not secrets.
     "CF_ACCESS_TEAM_DOMAIN": "troop10rwc",
-    "CF_ACCESS_AUD": "c67ec81bd200ea8636d0addb4633b384f6c4431657ff00edeff95551e5fc1a2c"
+    "CF_ACCESS_AUD": "c67ec81bd200ea8636d0addb4633b384f6c4431657ff00edeff95551e5fc1a2c",
+
+    // The Access-restricted stable workers.dev host that signs preview users in
+    // (issues the tactical.workers.dev-scoped session cookie). Only this host
+    // needs the Access policy; dynamic preview URLs bounce here to log in.
+    "PREVIEW_AUTH_ORIGIN": "https://profile.tactical.workers.dev"
   }
 
   // Secrets (set with `wrangler secret put <NAME>`, never committed):

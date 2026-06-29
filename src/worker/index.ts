@@ -2,7 +2,6 @@ import {
   d1SessionLookup,
   requireSession,
   SESSION_COOKIE_NAME,
-  type SessionIdentity,
   type SessionVariables,
   verifyAccessJwt,
 } from "@troop10rwc/worker-kit";
@@ -17,6 +16,7 @@ import {
   credentialIdsFor,
   deleteCredential,
   getCredential,
+  hasCredential,
   insertCredential,
   listCredentials,
   updateCredentialCounter,
@@ -39,14 +39,16 @@ type App = { Bindings: Env } & SessionVariables;
 
 const app = new Hono<App>();
 
-// Auth + WebAuthn/cookie scope are split by host. On troop10rwc.org everything
-// uses the pinned env values and the session cookie. The Access-restricted
-// *.workers.dev preview URLs (profile.tactical.workers.dev + each `wrangler
-// versions upload` URL) can't see that cookie (it's scoped to troop10rwc.org)
-// and can't use a troop10rwc.org passkey, so there we derive the rpID / origin /
-// cookie-domain from the request and bootstrap the first session off Cloudflare
-// Access (the edge gate). After a passkey is registered, the session cookie +
-// passkey carry auth like prod.
+// Auth + WebAuthn/cookie scope are split by host, mirroring prod. On
+// troop10rwc.org everything uses the pinned env values and the session cookie.
+// The *.workers.dev preview surface can't see that cookie (it's scoped to
+// troop10rwc.org) or use a troop10rwc.org passkey, so it runs its own analog:
+// the session cookie is scoped to the workers.dev apex (tactical.workers.dev),
+// the rpID/origin are request-derived, and only ONE stable host
+// (PREVIEW_AUTH_ORIGIN = profile.tactical.workers.dev) is Cloudflare
+// Access-restricted. Dynamic preview URLs with no session bounce to that host's
+// /preview/login (like prod redirects to id.troop10rwc.org), which signs the
+// user in via Access, sets the apex-scoped cookie, and returns them.
 const onWorkersDev = (c: Context<App>): boolean =>
   new URL(c.req.url).hostname.endsWith(".workers.dev");
 
@@ -70,10 +72,11 @@ const rpContext = (c: Context<App>): RpContext => {
 const cookieDomain = (c: Context<App>): string | undefined =>
   onWorkersDev(c) ? workersDevApex(new URL(c.req.url).hostname) : undefined;
 
-/** Auth for the *.workers.dev preview surface: an app session cookie if present
- *  (passkey login mints one scoped to the workers.dev apex), else bootstrap from
- *  the verified Cloudflare Access JWT — ensuring a `users` row so the later
- *  passkey/session FK writes hold. */
+/** Auth for the *.workers.dev preview surface: use the app session cookie if
+ *  present (scoped to the workers.dev apex, so it spans every preview URL). With
+ *  no session, API callers get 401; page loads bounce to the Access-gated auth
+ *  host (PREVIEW_AUTH_ORIGIN) to sign in and pick up the cookie. The actual
+ *  Access verification + cookie issuance lives on that host's /preview/login. */
 const workersDevAuth =
   (fail: "html" | "json"): MiddlewareHandler<App> =>
   async (c, next) => {
@@ -85,24 +88,10 @@ const workersDevAuth =
         return next();
       }
     }
-    const jwt = c.req.header("Cf-Access-Jwt-Assertion");
-    const { CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD } = c.env;
-    if (jwt && CF_ACCESS_TEAM_DOMAIN && CF_ACCESS_AUD) {
-      try {
-        const id = await verifyAccessJwt(jwt, {
-          teamDomain: CF_ACCESS_TEAM_DOMAIN,
-          audience: CF_ACCESS_AUD,
-        });
-        // Access keys identity by email; reuse it as the opaque `sub`. Ensure the
-        // users row so credentials/sessions FKs hold for later passkey writes.
-        await upsertUser(c.env.DB, id.email, id.name, id.email);
-        c.set("session", { sub: id.email, name: id.name, email: id.email } satisfies SessionIdentity);
-        return next();
-      } catch {
-        // Fall through — Access should have gated this at the edge already.
-      }
-    }
-    return fail === "json" ? c.json({ error: "unauthorized" }, 401) : c.text("Forbidden", 403);
+    if (fail === "json") return c.json({ error: "unauthorized" }, 401);
+    const authOrigin = c.env.PREVIEW_AUTH_ORIGIN;
+    if (!authOrigin) return c.text("Forbidden", 403);
+    return c.redirect(`${authOrigin}/preview/login?redirect=${encodeURIComponent(c.req.url)}`, 302);
   };
 
 // requireSession needs per-request env (db, authOrigin), so build it per call.
@@ -154,13 +143,49 @@ app.get("/logout", async (c) => {
   return c.redirect("/login", 302);
 });
 
+/* ---- workers.dev preview login (Cloudflare Access) ------------------------ */
+
+// The preview "login origin": only reachable with a verified Access JWT, which
+// only the Access-restricted stable host (PREVIEW_AUTH_ORIGIN) carries. Mints a
+// session cookie scoped to the workers.dev apex — so it works across every
+// preview URL — then bounces back to where the user started. Dynamic preview
+// URLs send unauthenticated page loads here (see workersDevAuth).
+app.get("/preview/login", async (c) => {
+  if (!onWorkersDev(c)) return c.notFound();
+  const jwt = c.req.header("Cf-Access-Jwt-Assertion");
+  const { CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD } = c.env;
+  if (!jwt || !CF_ACCESS_TEAM_DOMAIN || !CF_ACCESS_AUD) return c.text("Forbidden", 403);
+  let id: { email: string; name: string };
+  try {
+    id = await verifyAccessJwt(jwt, { teamDomain: CF_ACCESS_TEAM_DOMAIN, audience: CF_ACCESS_AUD });
+  } catch {
+    return c.text("Forbidden", 403);
+  }
+  // Access keys identity by email; reuse it as the opaque `sub`. Ensure the users
+  // row so the sessions/credentials FKs hold for the session + later passkeys.
+  await upsertUser(c.env.DB, id.email, id.name, id.email);
+  c.header("Set-Cookie", await issueSessionCookie(c.env.DB, c.env, id.email, cookieDomain(c)), {
+    append: true,
+  });
+  const apex = workersDevApex(new URL(c.req.url).hostname);
+  return c.redirect(safeRedirect(c.req.query("redirect"), apex, "/manage"), 302);
+});
+
 /* ---- authenticated pages -------------------------------------------------- */
 
 // This hub is account-only; "home" is the apex dashboard (troop10rwc.org/dashboard,
 // a separate Worker). The id root just lands on account management at /manage,
 // which handles auth (→ /login when no session).
 app.get("/", (c) => c.redirect("/manage", 302));
-app.get("/manage", pageAuth, (c) => c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN)));
+app.get("/manage", pageAuth, async (c) => {
+  // On the Access-bootstrapped *.workers.dev preview, a first-time visitor has no
+  // passkey yet — send them straight to the "add a passkey" prompt (mirrors the
+  // post-Slack-enrollment welcome). Prod (troop10rwc.org) is unaffected.
+  if (onWorkersDev(c) && !(await hasCredential(c.env.DB, c.var.session.sub))) {
+    return c.redirect("/profile?welcome=1", 302);
+  }
+  return c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN));
+});
 app.get("/profile", pageAuth, async (c) => {
   const creds = await listCredentials(c.env.DB, c.var.session.sub);
   return c.html(renderProfile(c.var.session, creds, c.req.query("welcome") === "1"));

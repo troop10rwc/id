@@ -17,6 +17,10 @@ export interface Env {
   // request → the worker just uses requireSession. Not secrets.
   CF_ACCESS_TEAM_DOMAIN?: string; // "troop10rwc" or "troop10rwc.cloudflareaccess.com"
   CF_ACCESS_AUD?: string; // Access application AUD tag
+  // The stable, Access-restricted workers.dev host that issues the preview
+  // session cookie — the workers.dev analog of AUTH_ORIGIN. Dynamic preview URLs
+  // bounce here (/preview/login) to sign in, then come back with the cookie.
+  PREVIEW_AUTH_ORIGIN?: string; // e.g. https://profile.tactical.workers.dev
 
   // Secrets
   SLACK_CLIENT_ID: string;
