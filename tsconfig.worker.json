@@ -4,5 +4,5 @@
     "lib": ["ES2022", "WebWorker"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src/worker"]
+  "include": ["src/worker", "src/dashboard/worker.ts"]
 }

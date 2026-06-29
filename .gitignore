@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/assets/
+public-dashboard/
 .wrangler/
 .dev.vars
 *.local

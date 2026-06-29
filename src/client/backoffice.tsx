@@ -209,7 +209,6 @@ function Overview() {
       appSwitcher={
         <BackOfficeTopNav active="overview" apps={apps} user={{ name: identity.name }} logoutUrl="/logout" />
       }
-      user={{ name: identity.name }}
       title="Profile"
       subtitle="Your activity across Troop 10 apps"
       nav={[
