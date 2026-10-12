@@ -19,6 +19,19 @@ describe("buildAuthorizeUrl", () => {
     expect(url.searchParams.get("state")).toBe("st");
     // No PKCE: confidential flow, secret authenticates the token exchange.
     expect(url.searchParams.get("code_challenge")).toBeNull();
+    expect(url.searchParams.get("team")).toBeNull();
+  });
+
+  it("pins the workspace via `team` so users skip the workspace-URL prompt", () => {
+    const url = new URL(
+      buildAuthorizeUrl({
+        clientId: "cid",
+        redirectUri: "https://troop10rwc.org/slack/callback",
+        state: "st",
+        teamId: TEAM,
+      }),
+    );
+    expect(url.searchParams.get("team")).toBe(TEAM);
   });
 });
 

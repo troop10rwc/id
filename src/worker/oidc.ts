@@ -14,6 +14,9 @@ export interface AuthorizeParams {
   clientId: string;
   redirectUri: string;
   state: string;
+  /** Slack workspace ID. Skips Slack's "enter your workspace URL" step and
+   *  lands the user directly on that workspace's sign-in. */
+  teamId?: string;
 }
 
 /** Build the Slack authorize URL. Missing `openid`/`profile` scope is a common
@@ -28,6 +31,7 @@ export function buildAuthorizeUrl(p: AuthorizeParams): string {
   url.searchParams.set("scope", "openid profile email");
   url.searchParams.set("redirect_uri", p.redirectUri);
   url.searchParams.set("state", p.state);
+  if (p.teamId) url.searchParams.set("team", p.teamId);
   return url.toString();
 }
 

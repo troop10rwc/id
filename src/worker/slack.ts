@@ -39,6 +39,7 @@ export async function slackStart(c: Ctx): Promise<Response> {
     clientId: c.env.SLACK_CLIENT_ID,
     redirectUri: `${c.env.AUTH_ORIGIN}/slack/callback`,
     state,
+    teamId: c.env.TROOP_TEAM_ID,
   });
   return c.redirect(url, 302);
 }
