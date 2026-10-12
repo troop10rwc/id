@@ -19,12 +19,15 @@ Deploys independently to its own subdomain (`id.troop10rwc.org`).
 | `/slack/start`, `/slack/callback` | OIDC enrollment (state + PKCE, `team_id` gate) |
 | `/passkey/{register,login}/{options,verify}` | WebAuthn ceremonies |
 | `/logout` | revoke session + clear cookie |
+| `/connect/extension` | hand the Scoutbook browser extension a per-member device token |
+| `/profile/devices/:id/delete` | disconnect (revoke) an extension's device token |
 
 ## Architecture
 
 Server-rendered Hono Worker + one Vite-built browser island
 (`src/client/passkey.ts` → `public/assets/passkey.js`) for the WebAuthn calls.
-The Worker owns the D1 database (`users`, `credentials`, `sessions`).
+The Worker owns the D1 database (`users`, `credentials`, `sessions`,
+`device_tokens`).
 
 ```
 src/worker/
@@ -32,6 +35,7 @@ src/worker/
   slack.ts      OIDC enrollment (network)        oidc.ts   pure OIDC helpers (PKCE, team gate)
   webauthn.ts   register/login ceremonies        challenge.ts  signed short-TTL cookies
   session.ts    issue/revoke sessions            redirect.ts   open-redirect guard
+  connect.ts    extension connect param checks
   db.ts         all D1 access                     encoding.ts   base64url + random tokens
   pages.ts      server-rendered HTML
 ```

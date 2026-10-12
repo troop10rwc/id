@@ -1,9 +1,10 @@
 import type { AuthenticatorTransportFuture, WebAuthnCredential } from "@simplewebauthn/server";
+import { DEVICE_TOKEN_PREFIX, hashDeviceToken } from "@troop10rwc/worker-kit";
 import { randomToken } from "./encoding.js";
 
 /**
  * All D1 access for the hub. Keeping the SQL in one place keeps it auditable —
- * note every credential query is scoped by slack_sub so a member can only ever
+ * note every credential/device-token query is scoped by slack_sub so a member can only ever
  * touch their own passkeys.
  */
 
@@ -163,6 +164,57 @@ export async function listCredentials(db: D1Database, sub: string): Promise<Cred
 export async function deleteCredential(db: D1Database, sub: string, id: string): Promise<boolean> {
   const res = await db
     .prepare("DELETE FROM credentials WHERE id = ? AND slack_sub = ?")
+    .bind(id, sub)
+    .run();
+  return (res.meta.changes ?? 0) > 0;
+}
+
+/* ---- device tokens (browser extension bearer auth) ------------------------ */
+
+export interface DeviceTokenSummary {
+  id: string;
+  label: string;
+  created_at: number;
+  expires_at: number;
+  last_used_at: number | null;
+}
+
+/** Mint a device token for a member. Returns the raw token (shown to the client
+ *  exactly once) and its row id; only the hash is stored. */
+export async function createDeviceToken(
+  db: D1Database,
+  sub: string,
+  label: string,
+  ttlSeconds: number,
+): Promise<{ id: string; token: string; expiresAt: number }> {
+  const token = `${DEVICE_TOKEN_PREFIX}${randomToken(32)}`;
+  const id = await hashDeviceToken(token);
+  const now = nowSeconds();
+  await db
+    .prepare(
+      "INSERT INTO device_tokens (id, slack_sub, label, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(id, sub, label, now, now + ttlSeconds)
+    .run();
+  return { id, token, expiresAt: now + ttlSeconds };
+}
+
+/** The member's unexpired device tokens, newest first. */
+export async function listDeviceTokens(db: D1Database, sub: string): Promise<DeviceTokenSummary[]> {
+  const { results } = await db
+    .prepare(
+      "SELECT id, label, created_at, expires_at, last_used_at FROM device_tokens " +
+        "WHERE slack_sub = ? AND expires_at > ? ORDER BY created_at DESC",
+    )
+    .bind(sub, nowSeconds())
+    .all<DeviceTokenSummary>();
+  return results ?? [];
+}
+
+/** Revoke one of the member's own device tokens. Returns true if a row was removed. */
+export async function deleteDeviceToken(db: D1Database, sub: string, id: string): Promise<boolean> {
+  const res = await db
+    .prepare("DELETE FROM device_tokens WHERE id = ? AND slack_sub = ?")
     .bind(id, sub)
     .run();
   return (res.meta.changes ?? 0) > 0;

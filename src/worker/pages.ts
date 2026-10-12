@@ -1,5 +1,5 @@
 import type { SessionIdentity } from "@troop10rwc/worker-kit";
-import type { CredentialSummary } from "./db.js";
+import type { CredentialSummary, DeviceTokenSummary } from "./db.js";
 
 /** Server-rendered auth pages. Minimal, dependency-free HTML + one small client
  *  island (/assets/passkey.js) for the WebAuthn ceremonies. */
@@ -94,6 +94,7 @@ export function renderManage(session: SessionIdentity, rootDomain: string): stri
 export function renderProfile(
   session: SessionIdentity,
   creds: CredentialSummary[],
+  devices: DeviceTokenSummary[],
   welcome: boolean,
 ): string {
   const who = esc(session.name ?? session.email ?? session.sub);
@@ -109,6 +110,20 @@ export function renderProfile(
         )
         .join("")}</ul>`
     : `<p class="muted">No passkeys yet.</p>`;
+  // Device tokens only show up once a member has connected an extension, so the
+  // section stays out of the way for everyone else.
+  const deviceList = devices.length
+    ? `<h2 style="font-size:1.05rem;margin-top:1.4rem">Connected extensions</h2>
+<ul>${devices
+        .map(
+          (d) => `<li>
+        <span class="meta"><strong>${esc(d.label)}</strong><br>
+        <span class="muted">connected ${fmt(d.created_at)}${d.last_used_at ? ` · last used ${fmt(d.last_used_at)}` : ""} · expires ${fmt(d.expires_at)}</span></span>
+        <button class="secondary" data-device="${esc(d.id)}" onclick="t10RevokeDevice(this.dataset.device)">Disconnect</button>
+      </li>`,
+        )
+        .join("")}</ul>`
+    : "";
   return shell(
     "Your account · Troop 10",
     `<h1>Your account</h1>
@@ -117,8 +132,38 @@ ${welcome ? `<p>You're enrolled! Add a passkey so you can sign in instantly next
 <h2 style="font-size:1.05rem;margin-top:1.4rem">Your passkeys</h2>
 ${list}
 <button onclick="t10AddPasskey()">Add a passkey</button>
+${deviceList}
 <a class="btn secondary" href="/">Back to home</a>
 <a class="btn secondary" href="/logout">Log out</a>`,
+    { island: true },
+  );
+}
+
+/** The page the Scoutbook extension opens to get a device token. The island
+ *  (passkey.ts) mints the token on click and hands it to the extension's
+ *  content script via window.postMessage, tagged with the extension's `state`. */
+export function renderConnectExtension(
+  session: SessionIdentity,
+  state: string | null,
+  label: string,
+): string {
+  const who = esc(session.name ?? session.email ?? session.sub);
+  if (!state) {
+    return shell(
+      "Connect extension · Troop 10",
+      `<h1>Connect the Scoutbook extension</h1>
+<p>Open this page from the <strong>Connect</strong> button in the extension's settings.</p>
+<a class="btn secondary" href="/profile">Your account</a>`,
+    );
+  }
+  return shell(
+    "Connect extension · Troop 10",
+    `<h1>Connect the Scoutbook extension</h1>
+<p class="muted">Signed in as ${who}</p>
+<p>The Troop 10 Scoutbook extension in this browser (<strong>${esc(label)}</strong>) will sync roster and calendar changes <strong>as you</strong>. You can disconnect it any time from your account page.</p>
+<button id="connect-extension" data-state="${esc(state)}">Connect</button>
+<p id="connect-status" class="muted" role="status"></p>
+<a class="btn secondary" href="/profile">Cancel</a>`,
     { island: true },
   );
 }

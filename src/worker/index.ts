@@ -1,5 +1,6 @@
 import {
   d1SessionLookup,
+  DEVICE_TOKEN_MAX_AGE,
   requireSession,
   SESSION_COOKIE_NAME,
   type SessionVariables,
@@ -12,18 +13,22 @@ import {
 import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { getCookie } from "hono/cookie";
 import { signValue, verifyValue } from "./challenge.js";
+import { deviceTokenLabel, parseConnectState } from "./connect.js";
 import {
+  createDeviceToken,
   credentialIdsFor,
   deleteCredential,
+  deleteDeviceToken,
   getCredential,
   hasCredential,
   insertCredential,
   listCredentials,
+  listDeviceTokens,
   updateCredentialCounter,
   upsertUser,
 } from "./db.js";
 import type { Env } from "./env.js";
-import { renderLogin, renderManage, renderProfile } from "./pages.js";
+import { renderConnectExtension, renderLogin, renderManage, renderProfile } from "./pages.js";
 import { safeRedirect } from "./redirect.js";
 import { issueSessionCookie, revokeSessionCookie } from "./session.js";
 import { slackCallback, slackStart } from "./slack.js";
@@ -119,15 +124,20 @@ const PK_HINT_TTL = 34_560_000; // 400 days (the browser cap on cookie lifetime)
 const hintCookie = (value: string, maxAge: number) =>
   `${PK_HINT}=${value}; Path=/; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 
-/** Coarse, friendly device label from the User-Agent (best-effort only). */
-function deviceLabel(ua: string | undefined): string | null {
+/** Coarse, friendly device name from the User-Agent, or null when unknown. */
+function deviceName(ua: string | undefined): string | null {
   if (!ua) return null;
   if (/iPhone/.test(ua)) return "iPhone";
   if (/iPad/.test(ua)) return "iPad";
   if (/Android/.test(ua)) return "Android device";
   if (/Macintosh/.test(ua)) return "Mac";
   if (/Windows/.test(ua)) return "Windows PC";
-  return "Passkey";
+  return null;
+}
+
+/** Passkey label from the User-Agent (best-effort only). */
+function deviceLabel(ua: string | undefined): string | null {
+  return ua ? (deviceName(ua) ?? "Passkey") : null;
 }
 
 /* ---- public pages + Slack enrollment ------------------------------------- */
@@ -187,8 +197,11 @@ app.get("/manage", pageAuth, async (c) => {
   return c.html(renderManage(c.var.session, c.env.ROOT_DOMAIN));
 });
 app.get("/profile", pageAuth, async (c) => {
-  const creds = await listCredentials(c.env.DB, c.var.session.sub);
-  return c.html(renderProfile(c.var.session, creds, c.req.query("welcome") === "1"));
+  const [creds, devices] = await Promise.all([
+    listCredentials(c.env.DB, c.var.session.sub),
+    listDeviceTokens(c.env.DB, c.var.session.sub),
+  ]);
+  return c.html(renderProfile(c.var.session, creds, devices, c.req.query("welcome") === "1"));
 });
 
 /* ---- passkey registration (requires a Slack-verified session) ------------ */
@@ -244,7 +257,32 @@ app.post("/passkey/login/verify", async (c) => {
   return c.json({ redirect: safeRedirect(c.req.query("redirect"), c.env.ROOT_DOMAIN, "/") });
 });
 
+/* ---- browser extension connect (device tokens) ---------------------------- */
+
+// The Scoutbook extension opens this page (after sign-in, via the usual /login
+// bounce) to get a per-member bearer token, so roster/calendar writes it makes
+// are attributable. The page only renders; minting is the POST below, so a
+// cross-site GET can't create tokens.
+app.get("/connect/extension", pageAuth, (c) => {
+  const label = deviceTokenLabel(c.req.query("client"), deviceName(c.req.header("User-Agent")));
+  c.header("Cache-Control", "no-store");
+  return c.html(renderConnectExtension(c.var.session, parseConnectState(c.req.query("state")), label));
+});
+
+app.post("/connect/extension/token", apiAuth, async (c) => {
+  const body = await c.req.json<{ client?: string }>().catch(() => ({}) as { client?: string });
+  const label = deviceTokenLabel(body.client, deviceName(c.req.header("User-Agent")));
+  const minted = await createDeviceToken(c.env.DB, c.var.session.sub, label, DEVICE_TOKEN_MAX_AGE);
+  c.header("Cache-Control", "no-store");
+  return c.json(minted);
+});
+
 /* ---- self-serve device management ---------------------------------------- */
+
+app.post("/profile/devices/:id/delete", apiAuth, async (c) => {
+  const ok = await deleteDeviceToken(c.env.DB, c.var.session.sub, c.req.param("id"));
+  return c.json({ ok });
+});
 
 app.post("/profile/credentials/:id/delete", apiAuth, async (c) => {
   const ok = await deleteCredential(c.env.DB, c.var.session.sub, c.req.param("id"));
