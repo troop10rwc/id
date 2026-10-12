@@ -274,7 +274,7 @@ app.post("/connect/extension/token", apiAuth, async (c) => {
   const label = deviceTokenLabel(body.client, deviceName(c.req.header("User-Agent")));
   const minted = await createDeviceToken(c.env.DB, c.var.session.sub, label, DEVICE_TOKEN_MAX_AGE);
   c.header("Cache-Control", "no-store");
-  return c.json(minted);
+  return c.json({ ...minted, name: c.var.session.name ?? c.var.session.email ?? null });
 });
 
 /* ---- self-serve device management ---------------------------------------- */

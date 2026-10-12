@@ -74,7 +74,7 @@ async function revokeDevice(id: string): Promise<void> {
 /* ---- /connect/extension handoff ------------------------------------------ *
    Contract with the extension's content script (roster repo,
    chrome-extension/src/connect.ts), same-window postMessage only:
-     page → ext  { type: "t10:device-token", state, token, expiresAt }
+     page → ext  { type: "t10:device-token", state, token, expiresAt, name }
      ext  → page { type: "t10:device-token-ack", state }
    No ack within ACK_TIMEOUT_MS → the extension isn't listening on this tab, so
    the just-minted token is revoked rather than left orphaned.                  */
@@ -114,9 +114,14 @@ async function connectExtension(btn: HTMLButtonElement): Promise<void> {
     say("Couldn't create a token. Reload the page and try again.");
     return;
   }
-  const { id, token, expiresAt } = (await res.json()) as { id: string; token: string; expiresAt: number };
+  const { id, token, expiresAt, name } = (await res.json()) as {
+    id: string;
+    token: string;
+    expiresAt: number;
+    name: string | null;
+  };
   const acked = waitForAck(state);
-  window.postMessage({ type: "t10:device-token", state, token, expiresAt }, location.origin);
+  window.postMessage({ type: "t10:device-token", state, token, expiresAt, name }, location.origin);
   if (await acked) {
     btn.remove();
     say("Connected. You can close this tab.");
